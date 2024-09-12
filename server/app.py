@@ -1,7 +1,8 @@
 from flask import Flask, request, jsonify
-import logging
+from models import summarize_with_gpt4
 
 # 配置日志
+import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -9,26 +10,21 @@ app = Flask(__name__)
 
 @app.route('/summary.json', methods=['POST'])
 def summarize():
+    data = request.json
+    text = data.get('text', '')
+
+    if not text:
+        return jsonify({'error': 'No text provided'}), 400
+
     try:
-        # 记录客户端上报的所有内容
-        logger.info(f"Received request data: {request.json}")
-
-        # 获取POST请求中的文本
-        text = request.json.get('text', '')
-        
-        # 这里应该是您的文本摘要逻辑
-        # 为了示例,我们简单地返回文本的前50个字符作为"摘要"
-        summary = text[:50] + '...' if len(text) > 50 else text
-        
-        # 记录处理结果
-        logger.info(f"Generated summary: {summary}")
-
-        # 返回JSON格式的响应
-        return jsonify({'summary': summary})
+        summary = summarize_with_gpt4(text, max_length=200)
+        return jsonify({
+            'summary': summary,
+            'model_used': 'gpt4'
+        })
     except Exception as e:
-        # 记录异常信息
-        logger.error(f"An error occurred: {str(e)}", exc_info=True)
-        return jsonify({'error': 'An internal error occurred'}), 500
+        logger.error(f"Error during summarization: {str(e)}")
+        return jsonify({'error': 'An error occurred during summarization'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
